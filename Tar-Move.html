@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamNow - Modern Search</title>
+    <style>
+        /* Global Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #141414;
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+        .sidebar .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e50914;
+            text-transform: uppercase;
+            margin-bottom: 50px;
+        }
+        .sidebar .nav-links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .sidebar .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 18px;
+            padding: 12px 20px;
+            width: 100%;
+            text-align: center;
+            border-radius: 5px;
+            background-color: #333;
+            transition: background-color 0.3s ease;
+        }
+        .sidebar .nav-links a:hover {
+            background-color: #e50914;
+        }
+
+        /* Main Content Styles */
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* Search Bar Styles */
+        #search-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 70%;
+            max-width: 600px;
+            position: absolute;
+            top: 20%;
+        }
+        #search-bar {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 30px;
+            background-color: #333;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        #search-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 30px;
+            background-color: #e50914;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        #search-btn:hover {
+            background-color: #b20610;
+        }
+
+        /* Movie Grid Styles */
+        .movie-grid {
+            margin-top: 50px;
+            width: 90%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            padding-bottom: 40px;
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .movie-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            background-color: #1f1f1f;
+            transition: transform 0.3s ease;
+        }
+        .movie-card img {
+            width: 100%;
+            height: 270px;
+            object-fit: cover;
+        }
+        .movie-card:hover {
+            transform: scale(1.05);
+        }
+        .movie-card .play-trailer-btn {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 10px;
+            font-size: 12px;
+            background-color: #e50914;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+        .movie-card:hover .play-trailer-btn {
+            display: block;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .content {
+                padding: 10px;
+            }
+            #search-container {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">StreamNow</div>
+        <div class="nav-links">
+            <a href="#">Home</a>
+            <a href="#">Account</a>
+            <a href="#">Favorites</a>
+            <a href="#">Settings</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+        <!-- Search Section -->
+        <div id="search-container">
+            <input type="text" id="search-bar" placeholder="Search movies...">
+            <button id="search-btn">Search</button>
+        </div>
+
+        <!-- Movie Grid -->
+        <div class="movie-grid" id="movie-grid">
+            <!-- Movie cards will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'a040379664d7b798501b40c6cfe3ef95';
+        const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+        const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+
+        const searchBar = document.getElementById('search-bar');
+        const searchBtn = document.getElementById('search-btn');
+        const movieGrid = document.getElementById('movie-grid');
+
+        // Fetch movies
+        async function fetchMovies(query) {
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                return data.results;
+            } catch (error) {
+                console.error('Error fetching movies:', error);
+                return [];
+            }
+        }
+
+        // Fetch trailer
+        async function fetchTrailer(movieId) {
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/movie/${movieId}/videos?api_key=${API_KEY}`);
+                const data = await response.json();
+                const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube');
+                return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
+            } catch (error) {
+                console.error('Error fetching trailer:', error);
+                return null;
+            }
+        }
+
+        // Display movies
+        function displayMovies(movies) {
+            movieGrid.innerHTML = '';
+            movies.forEach(movie => {
+                const movieCard = document.createElement('div');
+                movieCard.classList.add('movie-card');
+                const posterPath = movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : 'https://via.placeholder.com/180x270';
+                movieCard.innerHTML = `
+                    <img src="${posterPath}" alt="${movie.title}">
+                    <button class="play-trailer-btn" data-id="${movie.id}">Play Trailer</button>
+                `;
+                movieGrid.appendChild(movieCard);
+
+                // Add trailer functionality
+                movieCard.querySelector('.play-trailer-btn').addEventListener('click', async () => {
+                    const trailerUrl = await fetchTrailer(movie.id);
+                    if (trailerUrl) {
+                        window.open(trailerUrl, '_blank');
+                    } else {
+                        alert('Trailer not available.');
+                    }
+                });
+            });
+        }
+
+        // Search button click event
+        searchBtn.addEventListener('click', async () => {
+            const query = searchBar.value.trim();
+            if (query) {
+                const movies = await fetchMovies(query);
+                displayMovies(movies);
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
